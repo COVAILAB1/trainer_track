@@ -2,14 +2,16 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <meta-data
         android:name="com.google.android.geo.API_KEY"
         android:value="AIzaSyDSdQdpZQxS1cI_6nbz32U9zgpdj8oddes"/>
     <application
-        android:label="trainer_track_2"
+        android:label="KT TRACK"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/launcher_icon">
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
             android:foregroundServiceType="location"/>

@@ -1,76 +1,58 @@
-import 'package:flutter/material.dart';
+
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'api_service.dart';
+
+import '../user/user_login.dart';
+
 
 class AuthService with ChangeNotifier {
-  String? _userId;
-  String? _userName;
-  bool _isAdminLoggedIn = false;
-  String? _token;
+String? _userId;
+String? _userName;
+bool _isAdminLoggedIn = false;
+String? _token;
+final String _baseUrl ='https://trainer-backend-soj9.onrender.com';
 
-  String? get userId => _userId;
-  String? get userName => _userName;
-  bool get isAdminLoggedIn => _isAdminLoggedIn;
-  String? get token => _token;
+String? get userId => _userId;
+String? get userName => _userName;
+bool get isAdminLoggedIn => _isAdminLoggedIn;
+bool get isUserLoggedIn => _token != null && !_isAdminLoggedIn;
+String? get token => _token;
 
-  Future<bool> adminLogin(String username, String password) async {
-    try {
-      final response = await http.post(
-        Uri.parse('http://10.105.76.61:3000/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'username': username,
-          'password': password,
-          'isAdmin': true,
-        }),
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        _userId = data['userId'] as String?;
-        _userName = data['name'] as String?;
-        _isAdminLoggedIn = true;
-        _token = data['token'] as String?;
-        notifyListeners();
-        return true;
-      }
-      return false;
-    } catch (e) {
-      return false;
-    }
-  }
+Future<void> login(String username, String password) async {
+try {
+final response = await http.post(
+Uri.parse('$_baseUrl/login'),
+headers: {'Content-Type': 'application/json'},
+body: jsonEncode({
+'username': username,
+'password': password,
+}),
+);
+if (response.statusCode == 200) {
+final data = jsonDecode(response.body) as Map<String, dynamic>;
+_userId = data['userId'] as String?;
+_userName = username;
+_isAdminLoggedIn = data['isAdmin'] as bool? ?? false;
+_token = data['token'] as String?;
+if (_userId == null || _token == null) {
+throw Exception('Invalid response: missing userId or token');
+}
+notifyListeners();
+} else {
+throw Exception('Login failed: ${response.statusCode}');
+}
+} catch (e) {
+throw Exception('Login error: $e');
+}
+}
 
-  Future<bool> userLogin(String username, String password) async {
-    try {
-      final response = await http.post(
-        Uri.parse('http://10.105.76.61:3000/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'username': username,
-          'password': password,
-          'isAdmin': false,
-        }),
-      );
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        _userId = data['userId'] as String?;
-        _userName = data['name'] as String?;
-        _isAdminLoggedIn = false;
-        _token = data['token'] as String?;
-        notifyListeners();
-        return true;
-      }
-      return false;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  void logout() {
-    _userId = null;
-    _userName = null;
-    _isAdminLoggedIn = false;
-    _token = null;
-    notifyListeners();
-  }
+Future<void> logout() async {
+  await UserLoginScreen.logout();
+_userId = null;
+_userName = null;
+_isAdminLoggedIn = false;
+_token = null;
+notifyListeners();
+}
 }

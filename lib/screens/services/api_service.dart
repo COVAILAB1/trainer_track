@@ -1,12 +1,10 @@
-
 import 'package:flutter/foundation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
-
 class ApiService with ChangeNotifier {
-final String baseUrl = 'http://10.105.76.61:3000'; // Replace with actual backend URL
+final String baseUrl = 'https://trainer-backend-soj9.onrender.com';
 final String googleMapsApiKey = 'AIzaSyDSdQdpZQxS1cI_6nbz32U9zgpdj8oddes';
 
 Future<List<dynamic>> getUsers(String token) async {
@@ -22,20 +20,33 @@ throw Exception('Failed to load users: ${response.statusCode}');
 }
 
 Future<void> addUser(Map<String, dynamic> userData, String token) async {
-final response = await http.post(
-Uri.parse('$baseUrl/users'),
-headers: {
-'Content-Type': 'application/json',
-'Authorization': 'Bearer $token',
-},
-body: jsonEncode(userData),
-);
-if (response.statusCode != 201) {
-throw Exception('Failed to add user: ${response.statusCode}');
+  try {
+    final response = await http.post(
+      Uri.parse('$baseUrl/users'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(userData),
+    );
+    print('Add user response: ${response.statusCode}, ${response.body}'); // Debug log
+    if (response.statusCode == 201) {
+      notifyListeners();
+      return;
+    }
+    String errorMessage = 'Unknown error';
+    try {
+      final body = jsonDecode(response.body);
+      errorMessage = body['message']?.toString() ?? 'Error ${response.statusCode}';
+    } catch (e) {
+      errorMessage = response.body.isNotEmpty ? response.body : 'Error ${response.statusCode}';
+    }
+    throw Exception('Failed to add user: $errorMessage');
+  } catch (e) {
+    print('Error in addUser: $e'); // Debug log
+    rethrow;
+  }
 }
-notifyListeners();
-}
-
 Future<void> updateUser(String userId, Map<String, dynamic> userData, String token) async {
 final response = await http.put(
 Uri.parse('$baseUrl/users/$userId'),
@@ -46,7 +57,7 @@ headers: {
 body: jsonEncode(userData),
 );
 if (response.statusCode != 200) {
-throw Exception('Failed to update user: ${response.statusCode}');
+throw Exception('Failed to update user: ${jsonDecode(response.body)['message'] ?? response.statusCode}');
 }
 notifyListeners();
 }
@@ -69,15 +80,32 @@ headers: {
 'Content-Type': 'application/json',
 'Authorization': 'Bearer $token',
 },
-body: jsonEncode({'userId': userId, ...destinationData}),
+body: jsonEncode({
+'userId': userId,
+...destinationData,
+'date': DateTime.now().toIso8601String().split('T')[0], // e.g., 2025-08-01
+}),
 );
 if (response.statusCode != 201) {
-throw Exception('Failed to assign destination: ${response.statusCode}');
+throw Exception('Failed to assign destination: ${jsonDecode(response.body)['message'] ?? response.statusCode}');
 }
 notifyListeners();
 }
 
-Future<List<LatLng>> getRoute(LatLng origin, LatLng destination) async {
+Future<void> deleteDestination(String userId, String token) async {
+final response = await http.delete(
+Uri.parse('$baseUrl/destination/$userId'),
+headers: {'Authorization': 'Bearer $token'},
+);
+if (response.statusCode != 200) {
+throw Exception('Failed to delete destination: ${jsonDecode(response.body)['message'] ?? response.statusCode}');
+}
+notifyListeners();
+}
+
+
+
+Future<Map<String, dynamic>> getRoute(LatLng origin, LatLng destination) async {
 final url = 'https://maps.googleapis.com/maps/api/directions/json'
 '?origin=${origin.latitude},${origin.longitude}'
 '&destination=${destination.latitude},${destination.longitude}'
@@ -88,8 +116,14 @@ if (response.statusCode == 200) {
 final data = json.decode(response.body);
 if (data['status'] == 'OK') {
 final polyline = data['routes'][0]['overview_polyline']['points'];
+final duration = data['routes'][0]['legs'][0]['duration']['text'];
+final distance = data['routes'][0]['legs'][0]['distance']['value'] / 1000.0; // km
 notifyListeners();
-return _decodePolyline(polyline);
+return {
+'points': _decodePolyline(polyline),
+'duration': duration,
+'distance': distance,
+};
 } else {
 throw Exception('Directions API error: ${data['status']}');
 }
@@ -164,12 +198,36 @@ return jsonDecode(response.body) as List<dynamic>;
 throw Exception('Failed to load history: ${response.statusCode}');
 }
 
+Future<List<dynamic>> getUserStatuses(String token) async {
+  final response = await http.get(
+    Uri.parse('$baseUrl/users/status'),
+    headers: {'Authorization': 'Bearer $token'},
+  );
+  if (response.statusCode == 200) {
+    notifyListeners();
+    return jsonDecode(response.body) as List<dynamic>;
+  }
+  throw Exception('Failed to load user statuses: ${response.statusCode}');
+}
+Future<List<dynamic>> getAllUserLocations(String token) async {
+final response = await http.get(
+Uri.parse('$baseUrl/locations'),
+headers: {'Authorization': 'Bearer $token'},
+);
+if (response.statusCode == 200) {
+notifyListeners();
+return jsonDecode(response.body) as List<dynamic>;
+}
+throw Exception('Failed to load user locations: ${response.statusCode}');
+}
+
 Future<void> sendLocationData(Map<String, dynamic> data, String token) async {
 final response = await http.post(
 Uri.parse('$baseUrl/location'),
 headers: {
 'Content-Type': 'application/json',
-'Authorization': 'Bearer $token'},
+'Authorization': 'Bearer $token',
+},
 body: jsonEncode(data),
 );
 if (response.statusCode != 201) {
