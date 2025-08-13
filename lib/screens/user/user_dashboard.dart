@@ -74,7 +74,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> with WidgetsB
 
     // Clean up other resources
     _locationService?.removeListener(_handleLocationUpdate);
-    _locationService?.stopTracking();
+    _locationService?.stopTracking(widget.authService.userId);
     _stopPeriodicLocationSending();
     _mapController?.dispose();
 
@@ -703,7 +703,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> with WidgetsB
       }
 
       // Now stop all tracking services
-      _locationService!.stopTracking();
+      _locationService!.stopTracking(widget.authService.userId);
       _stopPeriodicLocationSending();
 
       // Update state to stopped
@@ -773,7 +773,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> with WidgetsB
             icon: const Icon(Icons.logout, color: Colors.white),
             onPressed: () async {
               // Stop all tracking services first
-              _locationService?.stopTracking();
+              _locationService?.stopTracking(widget.authService.userId);
               _stopPeriodicLocationSending();
 
               // Send offline status before logout if we have current position

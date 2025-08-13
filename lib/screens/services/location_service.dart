@@ -160,7 +160,7 @@ class LocationService with ChangeNotifier {
     }
   }
   static Future<void> _sendTrackingStartedNotification(String userId) async {
-    const String apiUrl = 'https://trainer-backend-soj9.onrender.com/tracking-started';
+    const String apiUrl = 'https://trainer-backend-soj9.onrender.com/api/tracking-started';
 
     try {
       final response = await http.post(
@@ -180,6 +180,7 @@ class LocationService with ChangeNotifier {
       print('Error sending tracking notification: $e');
     }
   }
+
   void startTracking(String userId, String token, {LatLng? startLocation}) async {
     if (isTracking) return;
     await _sendTrackingStartedNotification(userId);
@@ -249,7 +250,8 @@ class LocationService with ChangeNotifier {
     notifyListeners();
   }
 
-  void stopTracking() {
+  void stopTracking(userId) {
+
     if (!isTracking) return;
 
     isTracking = false;
@@ -260,7 +262,7 @@ class LocationService with ChangeNotifier {
     currentPosition = null;
     _positionStreamSubscription?.cancel();
     _positionStreamSubscription = null;
-
+    _sendTrackingStopNotification(userId);
     final service = FlutterBackgroundService();
     service.invoke('stopService');
 
@@ -340,5 +342,24 @@ class LocationService with ChangeNotifier {
       );
     }
     return totalDistance / 1000.0;
+  }
+
+  Future<void> _sendTrackingStopNotification(String? userId) async {
+    const String apiUrl = 'https://trainer-backend-soj9.onrender.com/api/tracking-stopped';
+
+    try {
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'userId': userId,
+          'message': 'Tracking stopped',
+          'timestamp': DateTime.now().toIso8601String(),
+        }),
+      );
+
+    } catch (e) {
+      print('Error sending tracking notification: $e');
+    }
   }
 }
