@@ -8,7 +8,7 @@ import '../services/auth_service.dart';
 import '../services/fcm_service.dart';
 import '../services/location_service.dart';
 import '../services/api_service.dart';
-
+import 'package:firebase_messaging/firebase_messaging.dart';
 class UserDashboardScreen extends StatefulWidget {
   final AuthService authService;
   const UserDashboardScreen({super.key, required this.authService});
@@ -34,11 +34,12 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> with WidgetsB
 
   // Add Timer for periodic location sending
   Timer? _locationSendTimer;
-  static const Duration _locationSendInterval = Duration(seconds: 15);
+  static const Duration _locationSendInterval = Duration(seconds: 10);
   DateTime? _lastLocationSent;
   bool _locationSendingActive = false;
   String _appStatus = 'foreground';
-
+  List<Map<String, dynamic>> _trackingNotifications = [];
+  bool _destinationProximityNotified = false; // Add this to the class variables
   Map<Permission, PermissionStatus> _permissionStatuses = {};
   List<Permission> _requiredPermissions = [
     Permission.location,
@@ -51,6 +52,9 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> with WidgetsB
     super.initState();
     _requestAllPermissions();
     FCMService.initialize();
+    _initializeAdminFCM();
+    _initializeAutoFCM();
+
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -80,7 +84,43 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> with WidgetsB
 
     super.dispose();
   }
+  Future<void> _initializeAdminFCM() async {
 
+
+    // Subscribe to admin topic to receive notifications[7]
+    await FCMService.subscribeToTopic('destination_${widget.authService.userId}');
+
+    // Handle foreground messages specifically for admin
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      setState(() {
+        _trackingNotifications.add({
+          'title': message.notification?.title ?? 'Tracking Update',
+          'body': message.notification?.body ?? 'User tracking activity',
+          'data': message.data,
+          'timestamp': DateTime.now(),
+        });
+      });
+    });
+  }
+
+  Future<void> _initializeAutoFCM() async {
+
+
+    // Subscribe to admin topic to receive notifications[7]
+    await FCMService.subscribeToTopic('user_${widget.authService.userId}');
+
+    // Handle foreground messages specifically for admin
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      setState(() {
+        _trackingNotifications.add({
+          'title': message.notification?.title ?? 'Tracking Update',
+          'body': message.notification?.body ?? 'User tracking activity',
+          'data': message.data,
+          'timestamp': DateTime.now(),
+        });
+      });
+    });
+  }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -571,7 +611,8 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> with WidgetsB
           ),
         );
       }
-
+      final distanceInKm = currentToDestResult['distance']?.toDouble() ?? double.infinity;
+      final distanceInMeters = distanceInKm * 1000;
       setState(() {
         _polylines = polylines;
         _etaToDestination = currentToDestResult['duration']?.toString() ?? 'N/A';
@@ -579,9 +620,45 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> with WidgetsB
             ? '${currentToDestResult['distance'].toStringAsFixed(1)} km'
             : 'N/A';
       });
+      if (distanceInMeters <= 250 && !_destinationProximityNotified && _isTracking) {
+        try {
+          final notificationData = {
+            'userId': widget.authService.userId ?? '',
+            'userName': widget.authService.userName ?? 'Unknown User',
+            'distanceToDestination': distanceInMeters,
+            'timestamp': DateTime.now().millisecondsSinceEpoch,
+          };
 
-      print('Polylines updated: $_polylines');
-      print('Distance: $_distanceToDestination, ETA: $_etaToDestination');
+          // Call the backend API to trigger the FCM notification
+          await Provider.of<ApiService>(context, listen: false).sendProximityNotification(
+            notificationData,
+            widget.authService.token ?? '',
+          );
+
+          print('Proximity notification request sent to backend: User within 250m of destination');
+          setState(() {
+            _destinationProximityNotified = true; // Prevent further notifications
+          });
+        } catch (e) {
+          print('Error sending proximity notification request to backend: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to send proximity notification: $e'),
+                duration: const Duration(seconds: 2),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } else if (distanceInMeters > 250 && _destinationProximityNotified) {
+        // Reset the flag if user moves out of the 250m radius
+        setState(() {
+          _destinationProximityNotified = false;
+        });
+      }
+
+
 
       // Adjust camera bounds only on first route load
       if (_polylines.length == 2) { // Initial route load (planned_route + current_route)

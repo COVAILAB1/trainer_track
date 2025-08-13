@@ -72,7 +72,26 @@ throw Exception('Failed to delete user: ${response.statusCode}');
 }
 notifyListeners();
 }
+Future<void> sendProximityNotification(Map<String, dynamic> data, String token) async {
+  try {
+    final response = await http.post(
+      Uri.parse('$baseUrl/api/notify-proximity'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(data),
+    );
 
+    if (response.statusCode != 200) {
+      throw Exception('Failed to send proximity notification: ${response.body}');
+    }
+    print('Proximity notification request sent successfully');
+  } catch (e) {
+    print('Error sending proximity notification request: $e');
+    rethrow;
+  }
+}
 Future<void> assignDestination(String userId, Map<String, dynamic> destinationData, String token) async {
 final response = await http.post(
 Uri.parse('$baseUrl/destination'),
