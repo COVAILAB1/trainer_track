@@ -8,8 +8,9 @@ import '../services/auth_service.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:ui' as ui;
 import '../services/api_service.dart';
+import '../services/fcm_service.dart';
 import '../services/location_service.dart';
-
+import 'package:firebase_messaging/firebase_messaging.dart';
 class AdminDashboardScreen extends StatefulWidget {
 final AuthService authService;
 const AdminDashboardScreen({super.key, required this.authService});
@@ -50,6 +51,7 @@ bool _isLoadingSuggestions = false;
 bool _isSelectingDestination = false;
 bool _showDestinationCard = false;
 BitmapDescriptor? _userIcon;
+List<Map<String, dynamic>> _trackingNotifications = [];
 
 final _formKey = GlobalKey<FormState>();
 
@@ -61,7 +63,34 @@ _fetchUsers();
 _fetchTodayDestinations();
 _initMapPosition();
 _startDataMonitoring();
+_initializeAdminFCM();
+getTokenAndPrint();
 }
+// In your Flutter app (user or admin)
+  Future<void> getTokenAndPrint() async {
+    String? token = await FirebaseMessaging.instance.getToken();
+    print('FCM Token: $token'); // Copy this token
+  }
+
+Future<void> _initializeAdminFCM() async {
+  await FCMService.initialize();
+
+  // Subscribe to admin topic to receive notifications[7]
+  await FCMService.subscribeToTopic('admin_notifications');
+
+  // Handle foreground messages specifically for admin
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    setState(() {
+      _trackingNotifications.add({
+        'title': message.notification?.title ?? 'Tracking Update',
+        'body': message.notification?.body ?? 'User tracking activity',
+        'data': message.data,
+        'timestamp': DateTime.now(),
+      });
+    });
+  });
+}
+
 Future<void> _loadUserIcon() async {
   try {
     // Load SVG and convert to BitmapDescriptor
@@ -1044,7 +1073,7 @@ Widget _buildDestinationCard() {
     ),
   );
 }
-@override
+
 
 // 4. Replace the complete build method
 @override
@@ -1061,6 +1090,7 @@ Widget build(BuildContext context) {
           ),
         ),
       ),
+
       actions: [
         IconButton(
           icon: const Icon(Icons.person_add, color: Colors.white),
@@ -1103,6 +1133,7 @@ Widget build(BuildContext context) {
         ),
       ],
     ),
+
     body: Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -1160,7 +1191,9 @@ Widget build(BuildContext context) {
           ),
         ],
       ),
+
     ),
+
   );
 }
 @override

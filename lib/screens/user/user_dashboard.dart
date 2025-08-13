@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'dart:math' as math;
 import 'dart:async'; // Add this import for Timer
 import '../services/auth_service.dart';
+import '../services/fcm_service.dart';
 import '../services/location_service.dart';
 import '../services/api_service.dart';
 
@@ -33,7 +34,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> with WidgetsB
 
   // Add Timer for periodic location sending
   Timer? _locationSendTimer;
-  static const Duration _locationSendInterval = Duration(seconds: 5);
+  static const Duration _locationSendInterval = Duration(seconds: 15);
   DateTime? _lastLocationSent;
   bool _locationSendingActive = false;
   String _appStatus = 'foreground';
@@ -49,6 +50,7 @@ class _UserDashboardScreenState extends State<UserDashboardScreen> with WidgetsB
   void initState() {
     super.initState();
     _requestAllPermissions();
+    FCMService.initialize();
     WidgetsBinding.instance.addObserver(this);
   }
 

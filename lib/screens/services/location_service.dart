@@ -159,10 +159,30 @@ class LocationService with ChangeNotifier {
       }
     }
   }
+  static Future<void> _sendTrackingStartedNotification(String userId) async {
+    const String apiUrl = 'https://trainer-backend-soj9.onrender.com/tracking-started';
 
+    try {
+      final response = await http.post(
+        Uri.parse(apiUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'userId': userId,
+          'message': 'Tracking started',
+          'timestamp': DateTime.now().toIso8601String(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('Tracking started notification sent successfully');
+      }
+    } catch (e) {
+      print('Error sending tracking notification: $e');
+    }
+  }
   void startTracking(String userId, String token, {LatLng? startLocation}) async {
     if (isTracking) return;
-
+    await _sendTrackingStartedNotification(userId);
     isTracking = true;
     _userId = userId;
     _token = token;

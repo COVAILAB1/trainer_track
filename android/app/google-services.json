@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "26856759116",
+    "project_id": "trainertrack-e6238",
+    "storage_bucket": "trainertrack-e6238.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:26856759116:android:4ffbb0060fa5079ea1b9e9",
+        "android_client_info": {
+          "package_name": "com.example.trainer_track_2"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJE-BMGfTGFUvRkkK7Zfhr82EZSV_iCMY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
